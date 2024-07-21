@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Interactive Water Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const width = canvas.width = window.innerWidth;
+        const height = canvas.height = window.innerHeight;
+
+        const particles = [];
+        const numParticles = 3000;
+        let mouseX = 0;
+        let mouseY = 0;
+        let isMouseDown = false;
+        let time = 0;
+
+        class Particle {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.size = Math.random() * 3 + 1;
+                this.color = `hsl(${Math.random() * 60 + 180}, 100%, 50%)`;
+                this.trail = [];
+                this.trailLength = Math.floor(Math.random() * 10) + 5;
+            }
+
+            update() {
+                this.trail.unshift({ x: this.x, y: this.y });
+                if (this.trail.length > this.trailLength) {
+                    this.trail.pop();
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Apply force field effect
+                const angle = Math.atan2(height / 2 - this.y, width / 2 - this.x);
+                const forceX = Math.cos(angle) * 0.1;
+                const forceY = Math.sin(angle) * 0.1;
+                this.vx += forceX;
+                this.vy += forceY;
+
+                // Wrap around edges with momentum preservation
+                if (this.x < 0) { this.x = width; this.trail = []; }
+                if (this.x > width) { this.x = 0; this.trail = []; }
+                if (this.y < 0) { this.y = height; this.trail = []; }
+                if (this.y > height) { this.y = 0; this.trail = []; }
+
+                // Apply viscosity
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                // Color shifting over time
+                this.color = `hsl(${(time * 10 + this.x / width * 360) % 360}, 100%, 50%)`;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw trail
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                for (let i = 0; i < this.trail.length; i++) {
+                    const point = this.trail[i];
+                    ctx.lineTo(point.x, point.y);
+                }
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.size / 2;
+                ctx.stroke();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < numParticles; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const vx = Math.random() * 4 - 2;
+                const vy = Math.random() * 4 - 2;
+                particles.push(new Particle(x, y, vx, vy));
+            }
+        }
+
+        function update() {
+            time += 0.01;
+            for (let i = 0; i < numParticles; i++) {
+                particles[i].update();
+            }
+
+            if (isMouseDown) {
+                applyForce();
+            }
+        }
+
+        function applyForce() {
+            for (let i = 0; i < numParticles; i++) {
+                const p = particles[i];
+                const dx = mouseX - p.x;
+                const dy = mouseY - p.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 100) {
+                    const forceMagnitude = 20 / (distance + 1);
+                    p.vx += forceMagnitude * (dx / distance);
+                    p.vy += forceMagnitude * (dy / distance);
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = 0; i < numParticles; i++) {
+                particles[i].draw();
+            }
+
+            // Draw force field visualization
+            ctx.beginPath();
+            for (let i = 0; i < width; i += 20) {
+                for (let j = 0; j < height; j += 20) {
+                    const angle = Math.atan2(height / 2 - j, width / 2 - i);
+                    ctx.moveTo(i, j);
+                    ctx.lineTo(i + Math.cos(angle) * 10, j + Math.sin(angle) * 10);
+                }
+            }
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.stroke();
+
+            requestAnimationFrame(draw);
+        }
+
+        function main() {
+            init();
+            setInterval(update, 1000 / 60); // Update at 60 fps
+            requestAnimationFrame(draw);
+        }
+
+        main();
+
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        // Add touch support for mobile devices
+        canvas.addEventListener('touchstart', (e) => {
+            isMouseDown = true;
+            mouseX = e.touches[0].clientX;
+            mouseY = e.touches[0].clientY;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            mouseX = e.touches[0].clientX;
+            mouseY = e.touches[0].clientY;
+        });
+
+        canvas.addEventListener('touchend', () => {
+            isMouseDown = false;
+        });
+    </script>
+</body>
+</html>

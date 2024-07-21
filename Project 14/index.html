@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Virtual Sorting Algorithms</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 20px;
+		}
+		h1, h2 {
+			color: #333;
+		}
+		code {
+			background-color: #f5f5f5;
+			padding: 2px 5px;
+			border-radius: 3px;
+		}
+		canvas {
+			border: 1px solid #ccc;
+			display: block;
+			margin: 20px auto;
+		}
+	</style>
+</head>
+<body>
+	<h1>Virtual Sorting Algorithms</h1>
+	<p>Sorting algorithms are essential in computer science, and they play a crucial role in organizing data efficiently. In the context of virtual environments, such as simulations or visualizations, sorting algorithms can be used to arrange and organize virtual objects or data elements in a specific order.</p>
+
+	<h2>Popular Virtual Sorting Algorithms</h2>
+	<ol>
+		<li><strong>Bubble Sort</strong>: This algorithm compares adjacent elements and swaps them if they are in the wrong order. It continues doing this until the entire list is sorted.</li>
+		<li><strong>Selection Sort</strong>: This algorithm finds the minimum element from the unsorted part of the list and swaps it with the first element of the unsorted part.</li>
+		<li><strong>Insertion Sort</strong>: This algorithm takes an element from the unsorted part of the list and inserts it into its correct position in the sorted part.</li>
+		<li><strong>Merge Sort</strong>: This algorithm divides the unsorted list into smaller sublists, sorts them, and then merges them back together in a sorted manner.</li>
+		<li><strong>Quick Sort</strong>: This algorithm selects a pivot element and partitions the list around it, placing elements smaller than the pivot before it and larger elements after it. It then recursively sorts the two partitions.</li>
+	</ol>
+
+	<h2>Visualization Example</h2>
+	<p>Here's a visualization of sorting algorithms:</p>
+
+	<canvas id="sortingCanvas" width="600" height="400"></canvas>
+
+	<script>
+		// Get the canvas element
+		const canvas = document.getElementById('sortingCanvas');
+		const ctx = canvas.getContext('2d');
+
+		// Define some constants
+		const canvasWidth = canvas.width;
+		const canvasHeight = canvas.height;
+		const barWidth = 10;
+		const barSpacing = 5;
+		const maxBarHeight = canvasHeight - 50;
+
+		// Generate an array of random values
+		const values = Array.from({ length: 50 }, () => Math.floor(Math.random() * maxBarHeight));
+
+		// Function to draw the bars on the canvas
+		function drawBars(arr) {
+			ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+			let x = 20;
+			for (let i = 0; i < arr.length; i++) {
+				const barHeight = arr[i];
+				ctx.fillRect(x, canvasHeight - barHeight, barWidth, barHeight);
+				x += barWidth + barSpacing;
+			}
+		}
+
+		// Sorting algorithm implementations
+		async function bubbleSort(arr) {
+			const n = arr.length;
+			for (let i = 0; i < n - 1; i++) {
+				for (let j = 0; j < n - i - 1; j++) {
+					if (arr[j] > arr[j + 1]) {
+						// Swap arr[j] and arr[j+1]
+						const temp = arr[j];
+						arr[j] = arr[j + 1];
+						arr[j + 1] = temp;
+
+						// Redraw the bars
+						drawBars(arr);
+						await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+					}
+				}
+			}
+		}
+
+		async function selectionSort(arr) {
+			const n = arr.length;
+			for (let i = 0; i < n - 1; i++) {
+				let minIdx = i;
+				for (let j = i + 1; j < n; j++) {
+					if (arr[j] < arr[minIdx]) {
+						minIdx = j;
+					}
+				}
+				if (minIdx != i) {
+					// Swap arr[i] and arr[minIdx]
+					const temp = arr[i];
+					arr[i] = arr[minIdx];
+					arr[minIdx] = temp;
+
+// Redraw the bars
+drawBars(arr);
+await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+}
+}
+}
+
+async function insertionSort(arr) {
+const n = arr.length;
+for (let i = 1; i < n; i++) {
+let key = arr[i];
+let j = i - 1;
+while (j >= 0 && arr[j] > key) {
+arr[j + 1] = arr[j];
+j = j - 1;
+
+// Redraw the bars
+drawBars(arr);
+await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+}
+arr[j + 1] = key;
+
+// Redraw the bars
+drawBars(arr);
+await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+}
+}
+
+async function mergeSort(arr) {
+if (arr.length < 2) return arr;
+
+const middle = Math.floor(arr.length / 2);
+const left = arr.slice(0, middle);
+const right = arr.slice(middle);
+
+await mergeSort(left);
+await mergeSort(right);
+
+let i = 0, j = 0, k = 0;
+while (i < left.length && j < right.length) {
+if (left[i] < right[j]) {
+arr[k++] = left[i++];
+} else {
+arr[k++] = right[j++];
+}
+
+// Redraw the bars
+drawBars(arr);
+await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+}
+while (i < left.length) arr[k++] = left[i++];
+while (j < right.length) arr[k++] = right[j++];
+
+// Redraw the bars
+drawBars(arr);
+await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+}
+
+async function quickSort(arr, low = 0, high = arr.length - 1) {
+if (low < high) {
+const pi = await partition(arr, low, high);
+
+await quickSort(arr, low, pi - 1);
+await quickSort(arr, pi + 1, high);
+}
+}
+
+async function partition(arr, low, high) {
+const pivot = arr[high];
+let i = low - 1;
+
+for (let j = low; j < high; j++) {
+if (arr[j] < pivot) {
+i++;
+[arr[i], arr[j]] = [arr[j], arr[i]];
+
+// Redraw the bars
+drawBars(arr);
+await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+}
+}
+[arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+
+// Redraw the bars
+drawBars(arr);
+await new Promise(resolve => setTimeout(resolve, 50)); // Add delay for animation effect
+
+return i + 1;
+}
+
+// Function to run all sorting algorithms consecutively
+async function runAllSorts() {
+let arrCopy;
+
+// Bubble Sort
+arrCopy = [...values];
+drawBars(arrCopy);
+await bubbleSort(arrCopy);
+
+// Selection Sort
+arrCopy = [...values];
+drawBars(arrCopy);
+await selectionSort(arrCopy);
+
+// Insertion Sort
+arrCopy = [...values];
+drawBars(arrCopy);
+await insertionSort(arrCopy);
+
+// Merge Sort
+arrCopy = [...values];
+drawBars(arrCopy);
+await mergeSort(arrCopy);
+
+// Quick Sort
+arrCopy = [...values];
+drawBars(arrCopy);
+await quickSort(arrCopy);
+}
+
+// Start the sorting visualizations
+runAllSorts();
+</script>
+</body>
+</html>

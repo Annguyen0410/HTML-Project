@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Random QR Code Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f9f9f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            color: #ff0000;
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+        }
+        button {
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(255, 0, 0, 0.2);
+        }
+        button:hover {
+            background-color: #cc0000;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(255, 0, 0, 0.3);
+        }
+        #qrcode {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+        #videoTitle {
+            margin-top: 1rem;
+            font-size: 1rem;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>YouTube QR Code Generator</h1>
+        <button id="generate">Generate QR Code</button>
+        <div id="qrcode"></div>
+        <div id="videoTitle"></div>
+    </div>
+    <script>
+        const generateBtn = document.getElementById('generate');
+        const qrcodeDiv = document.getElementById('qrcode');
+        const videoTitleDiv = document.getElementById('videoTitle');
+
+        // List of popular YouTube video IDs
+        const popularVideoIds = [
+            'dQw4w9WgXcQ', // Never Gonna Give You Up
+            'jNQXAC9IVRw', // Me at the zoo
+            'kJQP7kiw5Fk', // Despacito
+            'OPf0YbXqDm0', // Uptown Funk
+            'JGwWNGJdvx8', // Shape of You
+            'RgKAFK5djSk', // See You Again
+            'kXYiU_JCYtU', // Numb
+            'fJ9rUzIMcZQ', // Bohemian Rhapsody
+            'pRpeEdMmmQ0', // Shake It Off
+            'CevxZvSJLk8', // Roar
+            'aJOTlE1K90k', // Gangnam Style
+            'rYEDA3JcQqw', // Hello
+            'rMbATaj7Il8', // Let It Go
+            'fRh_vgS2dFE', // Counting Stars
+            'hT_nvWreIhg', // Sugar
+            'LjhCEhWiKXk', // Believer
+            'lDK9QqIzhwk', // Thunder
+            'YQHsXMglC9A', // Baby Shark Dance
+            'ZnYUxKNtM_U', // Perfect
+            '6Dh-RL__uN4', // Take Me To Church
+            'JFm7YDVlqnI', // Chandelier
+            'UwHQm8FZSxg', // Faded
+            'VYOjWnS4cMY', // Alan Walker - Alone
+            'JGwWNGJdvx8', // Wiz Khalifa - See You Again ft. Charlie Puth
+            'ru0K8uYEZWw', // Imagine Dragons - Believer
+            'Z1U3w9eShtA', // Queen - Bohemian Rhapsody
+            'kIdtYH72B7w', // The Chainsmokers - Closer ft. Halsey
+            'nfs8NYg7yQM', // Ed Sheeran - Shape of You
+            'V9AbeALNVkk', // Maroon 5 - Sugar
+            'OwH9MX3xJQs', // Sia - Chandelier
+            'jrhG5xViRk4', // Taylor Swift - Shake It Off
+            'LlU4FuIJT2k', // PSY - GANGNAM STYLE
+            'kP6hNZB9J7w', // Adele - Hello
+            'N6O2ncUKvlg', // Hozier - Take Me To Church
+            'LrUvu1mlWco', // Shakira - Waka Waka (This Time for Africa)
+            'QZGY3vzQDx4', // Passenger - Let Her Go
+            'jwVx2pXOZhU', // John Legend - All of Me
+            '7PCkvCPvDXk', // Avicii - Wake Me Up
+            '6JCLY0Rlx6Q', // Justin Bieber - Baby ft. Ludacris
+            '4aKteLmFpIw', // Ellie Goulding - Love Me Like You Do
+            'CwfoyVa980U', // Eminem - Love The Way You Lie ft. Rihanna
+            'G3LvhdFEOqs', // Mark Ronson - Uptown Funk ft. Bruno Mars
+            'O7EwGuOf8Lw', // Adele - Rolling in the Deep
+            '7wtfhZwyrcc', // PSY - DADDY(feat. CL of 2NE1)
+            'bESGLojNYSo', // Ed Sheeran - Perfect
+            '1j4tA1IYxTs', // Luis Fonsi - Despacito ft. Daddy Yankee
+            'Xz-UvQYAmbg', // Drake - In My Feelings
+        ];
+
+        function getRandomVideoId() {
+            return popularVideoIds[Math.floor(Math.random() * popularVideoIds.length)];
+        }
+
+        async function generateQRCode() {
+            const youtubeId = getRandomVideoId();
+            const youtubeUrl = `https://www.youtube.com/watch?v=${youtubeId}`;
+            
+            try {
+                const response = await fetch(`https://noembed.com/embed?url=${youtubeUrl}`);
+                const data = await response.json();
+                videoTitleDiv.textContent = data.title;
+
+                qrcodeDiv.innerHTML = '';
+                new QRCode(qrcodeDiv, {
+                    text: youtubeUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            } catch (error) {
+                console.error('Error fetching video info:', error);
+                videoTitleDiv.textContent = 'Error fetching video title';
+            }
+        }
+
+        generateBtn.addEventListener('click', generateQRCode);
+    </script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Interactive Water Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="controls">
+        <label for="particleCount">Particle Count: </label>
+        <input type="range" id="particleCount" min="1000" max="10000" value="5000">
+        <span id="particleCountValue">5000</span>
+    </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        let particles = [];
+        let numParticles = 5000;
+        let mouseX = 0;
+        let mouseY = 0;
+        let isMouseDown = false;
+
+        const particleCountSlider = document.getElementById('particleCount');
+        const particleCountValue = document.getElementById('particleCountValue');
+
+        class Particle {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.trail = [{x: x, y: y}];  // Initialize with current position
+                this.color = `hsl(${Math.random() * 60 + 200}, 100%, 50%)`;
+                this.size = Math.random() * 2 + 1;
+            }
+
+            update(particles) {
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 20) {
+                    this.trail.shift();
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                this.vy += 0.1;
+
+                this.applyForces(particles);
+
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+
+            applyForces(particles) {
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    if (p === this) continue;
+                    const dx = p.x - this.x;
+                    const dy = p.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > 0 && distance < 25) {
+                        const forceMagnitude = 0.1 * (25 - distance);
+                        this.vx += forceMagnitude * (dx / distance);
+                        this.vy += forceMagnitude * (dy / distance);
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (this.trail.length < 2) return;  // Don't draw if there's not enough trail
+
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.size;
+                ctx.beginPath();
+                ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                for (let i = 1; i < this.trail.length; i++) {
+                    ctx.lineTo(this.trail[i].x, this.trail[i].y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function init() {
+            particles = [];
+            for (let i = 0; i < numParticles; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const vx = Math.random() * 2 - 1;
+                const vy = Math.random() * 2 - 1;
+                particles.push(new Particle(x, y, vx, vy));
+            }
+        }
+
+        function update() {
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update(particles);
+            }
+
+            if (isMouseDown) {
+                applyForce();
+            }
+        }
+
+        function applyForce() {
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                const dx = mouseX - p.x;
+                const dy = mouseY - p.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 100) {
+                    const forceMagnitude = 20 / distance;
+                    p.vx += forceMagnitude * (dx / distance);
+                    p.vy += forceMagnitude * (dy / distance);
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].draw(ctx);
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        function main() {
+            init();
+            update();
+            draw();
+        }
+
+        function gameLoop() {
+            update();
+            requestAnimationFrame(gameLoop);
+        }
+
+        main();
+        gameLoop();
+
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            init();
+        });
+
+        particleCountSlider.addEventListener('input', (e) => {
+            numParticles = parseInt(e.target.value);
+            particleCountValue.textContent = numParticles;
+            init();
+        });
+    </script>
+</body>
+</html>

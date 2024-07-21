@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Space Particle System</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const width = canvas.width = window.innerWidth;
+        const height = canvas.height = window.innerHeight;
+
+        const particles = [];
+        const numParticles = 2000;
+        const gravityWells = [];
+        const numGravityWells = 3;
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.radius = Math.random() * 2 + 1;
+                this.color = `hsl(${Math.random() * 60 + 200}, 100%, 50%)`;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wrap around edges
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+
+                // Apply gravity from wells
+                gravityWells.forEach(well => {
+                    const dx = well.x - this.x;
+                    const dy = well.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > 5) {
+                        const force = well.strength / (distance * distance);
+                        this.vx += dx / distance * force;
+                        this.vy += dy / distance * force;
+                    }
+                });
+
+                // Apply drag
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class GravityWell {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 20;
+                this.strength = 300;
+                this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 3, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < numParticles; i++) {
+                particles.push(new Particle());
+            }
+
+            for (let i = 0; i < numGravityWells; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                gravityWells.push(new GravityWell(x, y));
+            }
+        }
+
+        function update() {
+            particles.forEach(particle => particle.update());
+        }
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            particles.forEach(particle => particle.draw());
+            gravityWells.forEach(well => well.draw());
+
+            requestAnimationFrame(draw);
+        }
+
+        function main() {
+            init();
+            setInterval(update, 1000 / 60); // Update at 60 fps
+            requestAnimationFrame(draw);
+        }
+
+        main();
+
+        canvas.addEventListener('click', (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+            const newWell = new GravityWell(x, y);
+            gravityWells.push(newWell);
+
+            // Remove the oldest well if we have more than the limit
+            if (gravityWells.length > numGravityWells) {
+                gravityWells.shift();
+            }
+        });
+
+        // Add touch support for mobile devices
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const x = e.touches[0].clientX;
+            const y = e.touches[0].clientY;
+            const newWell = new GravityWell(x, y);
+            gravityWells.push(newWell);
+
+            // Remove the oldest well if we have more than the limit
+            if (gravityWells.length > numGravityWells) {
+                gravityWells.shift();
+            }
+        });
+    </script>
+</body>
+</html>

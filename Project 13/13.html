@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosystem Temperature Simulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        #temperatureSlider {
+            width: 80%;
+            margin: 20px 0;
+        }
+        #ecosystem {
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+            background-color: #87CEEB; /* Sky blue */
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .organism {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transition: all 0.5s ease;
+        }
+        #controls {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ecosystem Temperature Simulation</h1>
+        <p>Adjust the temperature to see how it affects different organisms in the ecosystem.</p>
+        <input type="range" id="temperatureSlider" min="0" max="40" value="20">
+        <p>Temperature: <span id="temperatureValue">20</span>°C</p>
+        <div id="ecosystem"></div>
+        <div id="controls">
+            <div>
+                <span style="color: green;">● </span>Plants: <span id="plantCount">0</span>
+            </div>
+            <div>
+                <span style="color: blue;">● </span>Fish: <span id="fishCount">0</span>
+            </div>
+            <div>
+                <span style="color: red;">● </span>Predators: <span id="predatorCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const temperatureSlider = document.getElementById('temperatureSlider');
+        const temperatureValue = document.getElementById('temperatureValue');
+        const ecosystem = document.getElementById('ecosystem');
+        const plantCount = document.getElementById('plantCount');
+        const fishCount = document.getElementById('fishCount');
+        const predatorCount = document.getElementById('predatorCount');
+
+        let organisms = {
+            plants: [],
+            fish: [],
+            predators: []
+        };
+
+        function createOrganism(type) {
+            const organism = document.createElement('div');
+            organism.className = 'organism';
+            organism.style.left = Math.random() * 290 + 'px';
+            organism.style.top = Math.random() * 290 + 'px';
+
+            switch(type) {
+                case 'plants':
+                    organism.style.backgroundColor = 'green';
+                    break;
+                case 'fish':
+                    organism.style.backgroundColor = 'blue';
+                    break;
+                case 'predators':
+                    organism.style.backgroundColor = 'red';
+                    break;
+            }
+
+            ecosystem.appendChild(organism);
+            organisms[type].push(organism);
+        }
+
+        function updateEcosystem() {
+            const temperature = parseInt(temperatureSlider.value);
+            temperatureValue.textContent = temperature;
+
+            // Update background color based on temperature
+            const hue = 200 - (temperature * 5); // Bluer when cold, greener when hot
+            ecosystem.style.backgroundColor = `hsl(${hue}, 80%, 80%)`;
+
+            // Growth rates based on temperature
+            const plantGrowthRate = Math.max(0, (temperature - 5) / 35);
+            const fishGrowthRate = Math.max(0, (25 - Math.abs(temperature - 20)) / 25);
+            const predatorGrowthRate = Math.max(0, (temperature - 15) / 25);
+
+            // Update organisms
+            if (Math.random() < plantGrowthRate) createOrganism('plants');
+            if (Math.random() < fishGrowthRate && organisms.plants.length > 0) createOrganism('fish');
+            if (Math.random() < predatorGrowthRate && organisms.fish.length > 0) createOrganism('predators');
+
+            // Remove organisms (simulate death or being eaten)
+            if (Math.random() < 0.1 && organisms.plants.length > 0) removeOrganism('plants');
+            if (Math.random() < 0.1 && organisms.fish.length > 0) removeOrganism('fish');
+            if (Math.random() < 0.1 && organisms.predators.length > 0) removeOrganism('predators');
+
+            // Update counts
+            plantCount.textContent = organisms.plants.length;
+            fishCount.textContent = organisms.fish.length;
+            predatorCount.textContent = organisms.predators.length;
+        }
+
+        function removeOrganism(type) {
+            if (organisms[type].length > 0) {
+                const index = Math.floor(Math.random() * organisms[type].length);
+                ecosystem.removeChild(organisms[type][index]);
+                organisms[type].splice(index, 1);
+            }
+        }
+
+        temperatureSlider.addEventListener('input', updateEcosystem);
+        setInterval(updateEcosystem, 500); // Update every 500ms
+
+        // Initial population
+        for (let i = 0; i < 5; i++) {
+            createOrganism('plants');
+            createOrganism('fish');
+            createOrganism('predators');
+        }
+    </script>
+</body>
+</html>

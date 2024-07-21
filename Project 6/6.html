@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Interactive Water Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #001f3f; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        const particles = [];
+        const numParticles = 2000;
+        const gridSize = 20;
+        const grid = [];
+        let mouseX = 0;
+        let mouseY = 0;
+        let isMouseDown = false;
+
+        class Particle {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.radius = 2;
+                this.mass = 1;
+                this.color = `hsla(${Math.random() * 60 + 180}, 100%, 50%, 0.8)`;
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                // Apply viscosity
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+
+                // Apply gravity
+                this.vy += 9.8 * dt;
+
+                // Wrap around edges with momentum conservation
+                if (this.x < 0) { this.x = width; this.vx *= -0.5; }
+                if (this.x > width) { this.x = 0; this.vx *= -0.5; }
+                if (this.y < 0) { this.y = height; this.vy *= -0.5; }
+                if (this.y > height) { this.y = 0; this.vy *= -0.5; }
+
+                // Apply cohesion to center
+                this.vx += (width / 2 - this.x) * 0.00001 * dt;
+                this.vy += (height / 2 - this.y) * 0.00001 * dt;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < numParticles; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const vx = Math.random() * 2 - 1;
+                const vy = Math.random() * 2 - 1;
+                particles.push(new Particle(x, y, vx, vy));
+            }
+
+            // Initialize grid
+            for (let x = 0; x < Math.ceil(width / gridSize); x++) {
+                grid[x] = [];
+                for (let y = 0; y < Math.ceil(height / gridSize); y++) {
+                    grid[x][y] = [];
+                }
+            }
+        }
+
+        function updateGrid() {
+            // Clear grid
+            for (let x = 0; x < Math.ceil(width / gridSize); x++) {
+                for (let y = 0; y < Math.ceil(height / gridSize); y++) {
+                    grid[x][y].length = 0;
+                }
+            }
+
+            // Add particles to grid
+            for (const p of particles) {
+                const gx = Math.floor(p.x / gridSize);
+                const gy = Math.floor(p.y / gridSize);
+                if (gx >= 0 && gx < Math.ceil(width / gridSize) && gy >= 0 && gy < Math.ceil(height / gridSize)) {
+                    grid[gx][gy].push(p);
+                }
+            }
+        }
+
+        function applyForces(dt) {
+            for (let gx = 0; gx < Math.ceil(width / gridSize); gx++) {
+                for (let gy = 0; gy < Math.ceil(height / gridSize); gy++) {
+                    const cell = grid[gx][gy];
+                    for (const p1 of cell) {
+                        // Check neighboring cells
+                        for (let dx = -1; dx <= 1; dx++) {
+                            for (let dy = -1; dy <= 1; dy++) {
+                                const nx = gx + dx;
+                                const ny = gy + dy;
+                                if (nx >= 0 && nx < Math.ceil(width / gridSize) && ny >= 0 && ny < Math.ceil(height / gridSize)) {
+                                    for (const p2 of grid[nx][ny]) {
+                                        if (p1 !== p2) {
+                                            const dx = p2.x - p1.x;
+                                            const dy = p2.y - p1.y;
+                                            const distance = Math.sqrt(dx * dx + dy * dy);
+                                            if (distance > 0 && distance < 15) {
+                                                const forceMagnitude = 0.5 * (15 - distance) / distance;
+                                                const fx = forceMagnitude * dx;
+                                                const fy = forceMagnitude * dy;
+                                                p1.vx -= fx * dt / p1.mass;
+                                                p1.vy -= fy * dt / p1.mass;
+                                                p2.vx += fx * dt / p2.mass;
+                                                p2.vy += fy * dt / p2.mass;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function update(dt) {
+            updateGrid();
+            applyForces(dt);
+
+            for (const p of particles) {
+                p.update(dt);
+            }
+
+            if (isMouseDown) {
+                applyMouseForce(dt);
+            }
+        }
+
+        function applyMouseForce(dt) {
+            for (const p of particles) {
+                const dx = mouseX - p.x;
+                const dy = mouseY - p.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 100) {
+                    const forceMagnitude = 500 / distance;
+                    p.vx += forceMagnitude * (dx / distance) * dt;
+                    p.vy += forceMagnitude * (dy / distance) * dt;
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 31, 63, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            for (const p of particles) {
+                p.draw();
+            }
+        }
+
+        let lastTime = 0;
+        function loop(currentTime) {
+            const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
+            lastTime = currentTime;
+
+            update(dt);
+            draw();
+
+            requestAnimationFrame(loop);
+        }
+
+        init();
+        requestAnimationFrame(loop);
+
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            init(); // Reinitialize particles and grid on resize
+        });
+    </script>
+</body>
+</html>

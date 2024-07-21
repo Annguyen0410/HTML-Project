@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Mind - Mindfulness App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6a4c93;
+            --secondary-color: #8ac4d0;
+            --text-color: #333;
+            --background-color: #f4f4f4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            grid-template-rows: auto 1fr auto;
+            min-height: 100vh;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        nav {
+            background-color: white;
+            padding: 2rem 1rem;
+        }
+
+        nav ul {
+            list-style-type: none;
+        }
+
+        nav ul li {
+            margin-bottom: 1rem;
+        }
+
+        nav ul li a {
+            color: var(--text-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        nav ul li a:hover {
+            color: var(--primary-color);
+        }
+
+        main {
+            padding: 2rem;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            margin: 1rem;
+        }
+
+        footer {
+            grid-column: 1 / -1;
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: var(--primary-color);
+        }
+
+        .breathing-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background-color: var(--secondary-color);
+            margin: 2rem auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            color: white;
+            transition: transform 4s ease;
+        }
+
+        .breathing-circle.inhale {
+            transform: scale(1.5);
+        }
+
+        .breathing-circle.exhale {
+            transform: scale(1);
+        }
+
+        #moodChart {
+            max-width: 100%;
+            height: 300px;
+        }
+
+        .mood-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .mood-button {
+            font-size: 2rem;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .mood-button:hover {
+            transform: scale(1.2);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            nav {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Zen Mind</h1>
+        </header>
+        <nav>
+            <ul>
+                <li><a href="#" data-page="home">Home</a></li>
+                <li><a href="#" data-page="meditation">Meditation Library</a></li>
+                <li><a href="#" data-page="sounds">Calming Sounds</a></li>
+                <li><a href="#" data-page="breathing">Breathing Exercises</a></li>
+                <li><a href="#" data-page="mood">Mood Tracker</a></li>
+                <li><a href="#" data-page="settings">Settings</a></li>
+            </ul>
+        </nav>
+        <main id="app">
+            <!-- Content will be dynamically loaded here -->
+        </main>
+        <footer>
+            © 2024 Zen Mind - Your Path to Inner Peace
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const app = document.getElementById('app');
+        const navLinks = document.querySelectorAll('nav a');
+
+        let meditationData = [];
+        let soundData = [];
+        let moodData = JSON.parse(localStorage.getItem('moodData')) || [];
+
+        // Simulate fetching data from a server
+        async function fetchData() {
+            try {
+                const meditationResponse = await fetch('https://api.example.com/meditations');
+                meditationData = await meditationResponse.json();
+
+                const soundResponse = await fetch('https://api.example.com/sounds');
+                soundData = await soundResponse.json();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                // Fallback to sample data if fetch fails
+                meditationData = [
+                    { id: 1, title: "5-min Relaxation", duration: 5, theme: "relaxation" },
+                    { id: 2, title: "10-min Focus", duration: 10, theme: "focus" },
+                    { id: 3, title: "20-min Sleep Aid", duration: 20, theme: "sleep" },
+                    { id: 4, title: "15-min Anxiety Relief", duration: 15, theme: "anxiety" }
+                ];
+                soundData = [
+                    { id: 1, title: "Ocean Waves", type: "nature" },
+                    { id: 2, title: "White Noise", type: "noise" },
+                    { id: 3, title: "Soft Piano", type: "instrumental" }
+                ];
+            }
+        }
+
+        const routes = {
+            home: () => `
+                <h2>Welcome to Zen Mind</h2>
+                <p>Embark on your journey to inner peace and mindfulness.</p>
+                <div class="card-grid">
+                    <div class="card">
+                        <h3>Quick Meditation</h3>
+                        <p>Take a 5-minute break to center yourself.</p>
+                        <button onclick="startMeditation(5)">Start Now</button>
+                    </div>
+                    <div class="card">
+                        <h3>Breathing Exercise</h3>
+                        <p>Calm your mind with a simple breathing technique.</p>
+                        <button onclick="navigate('breathing')">Go to Exercises</button>
+                    </div>
+                    <div class="card">
+                        <h3>Today's Mood</h3>
+                        <p>How are you feeling today?</p>
+                        <button onclick="navigate('mood')">Log Mood</button>
+                    </div>
+                </div>
+            `,
+            meditation: () => `
+                <h2>Guided Meditation Library</h2>
+                <div class="card-grid">
+                    ${meditationData.map(m => `
+                        <div class="card">
+                            <h3>${m.title}</h3>
+                            <p>Duration: ${m.duration} minutes</p>
+                            <p>Theme: ${m.theme}</p>
+                            <button onclick="startMeditation(${m.duration})">Start</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `,
+            sounds: () => `
+                <h2>Calming Sounds</h2>
+                <div class="card-grid">
+                    ${soundData.map(s => `
+                        <div class="card">
+                            <h3>${s.title}</h3>
+                            <p>Type: ${s.type}</p>
+                            <button onclick="playSound('${s.title}')">Play</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `,
+            breathing: () => `
+                <h2>Breathing Exercises</h2>
+                <div class="breathing-circle" id="breathingCircle">
+                    <span id="breathingInstruction">Click to Start</span>
+                </div>
+                <button onclick="startBreathingExercise()">Start Exercise</button>
+            `,
+            mood: () => `
+                <h2>Mood Tracker</h2>
+                <div class="mood-tracker">
+                    <p>How are you feeling today?</p>
+                    <div class="mood-buttons">
+                        <span class="mood-button" onclick="logMood('😊')">😊</span>
+                        <span class="mood-button" onclick="logMood('😐')">😐</span>
+                        <span class="mood-button" onclick="logMood('😢')">😢</span>
+                    </div>
+                    <canvas id="moodChart"></canvas>
+                </div>
+            `,
+            settings: () => `
+                <h2>Settings</h2>
+                <form onsubmit="saveSettings(event)">
+                    <label for="reminderTime">Daily Reminder Time:</label>
+                    <input type="time" id="reminderTime" name="reminderTime" value="${localStorage.getItem('reminderTime') || ''}">
+                    <button type="submit">Save Settings</button>
+                </form>
+            `
+        };
+
+        async function navigate(page) {
+            if (meditationData.length === 0 || soundData.length === 0) {
+                await fetchData();
+            }
+            app.innerHTML = routes[page]();
+            if (page === 'mood') {
+                renderMoodChart();
+            }
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = e.target.getAttribute('data-page');
+                navigate(page);
+            });
+        });
+
+        function startMeditation(duration) {
+            app.innerHTML = `
+                <h2>Meditation in Progress</h2>
+                <p>Relax and focus on your breath...</p>
+                <p id="meditationTimer">${duration}:00</p>
+            `;
+            let timeLeft = duration * 60;
+            const timer = setInterval(() => {
+                timeLeft--;
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                document.getElementById('meditationTimer').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                if (timeLeft === 0) {
+                    clearInterval(timer);
+                    app.innerHTML += '<p>Meditation complete. How do you feel?</p>';
+                }
+            }, 1000);
+        }
+
+        function playSound(title) {
+            // In a real app, this would play an audio file
+            alert(`Playing ${title}`);
+        }
+
+        function startBreathingExercise() {
+            const circle = document.getElementById('breathingCircle');
+            const instruction = document.getElementById('breathingInstruction');
+            let count = 0;
+            const breathingInterval = setInterval(() => {
+                count++;
+                if (count % 2 === 1) {
+                    circle.classList.add('inhale');
+                    circle.classList.remove('exhale');
+                    instruction.textContent = "Inhale...";
+                } else {
+                    circle.classList.add('exhale');
+                    circle.classList.remove('inhale');
+                    instruction.textContent = "Exhale...";
+                }
+                if (count >= 10) {
+                    clearInterval(breathingInterval);
+                    instruction.textContent = "Exercise complete!";
+                }
+            }, 4000);
+        }
+
+        function logMood(mood) {
+            const date = new Date().toISOString().split('T')[0];
+            moodData.push({ date, mood });
+            localStorage.setItem('moodData', JSON.stringify(moodData));
+            renderMoodChart();
+        }
+
+        function renderMoodChart() {
+            const ctx = document.getElementById('moodChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: moodData.map(d => d.date),
+                    datasets: [{
+                        label: 'Mood',
+                        data: moodData.map(d => d.mood === '😊' ? 3 : d.mood === '😐' ? 2 : 1),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 3,
+                            ticks: {
+                                callback: function(value) {
+                                    return ['😢', '😐', '😊'][value - 1];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function saveSettings(event) {
+            event.preventDefault();
+            const reminderTime = document.getElementById('reminderTime').value;
+            localStorage.setItem('reminderTime', reminderTime);
+            alert('Settings saved!');
+        }
+
+        // Initialize with home page
+        navigate('home');
+    </script>
+</body>
+</html>

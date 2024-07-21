@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Tree Animation</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+        #fractalTreeCanvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 2;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 2;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="fractalTreeCanvas"></canvas>
+    <div id="controls">
+        <div class="control-group">
+            <label for="branchLength">Branch Length:</label>
+            <input type="range" id="branchLength" min="50" max="250" value="150">
+        </div>
+        <div class="control-group">
+            <label for="branchFactor">Branch Factor:</label>
+            <input type="range" id="branchFactor" min="0.5" max="0.9" step="0.01" value="0.75">
+        </div>
+        <div class="control-group">
+            <label for="angleChange">Angle Change:</label>
+            <input type="range" id="angleChange" min="5" max="45" value="15">
+        </div>
+        <button id="randomize">Randomize</button>
+        <button id="resetDefault">Reset to Default</button>
+        <button id="toggleFullscreen">Toggle Fullscreen</button>
+        <button id="saveImage">Save Image</button>
+    </div>
+    <div id="info">
+        Mouse: Control angle | Click: Random tree | Scroll: Adjust angle | Arrow keys: Adjust parameters | R: Reset | F: Fullscreen | S: Save image
+    </div>
+    <script>
+        const canvas = document.getElementById('fractalTreeCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let angle = 0;
+        let maxBranchLength = 150;
+        let branchFactor = 0.75;
+        let angleChange = 15;
+        let leafColors = ['#4CAF50', '#FFC107', '#FF9800', '#F44336'];
+        let colorIndex = 0;
+
+        function drawTree(startX, startY, length, angle, branchWidth, color1, color2) {
+            ctx.beginPath();
+            ctx.save();
+            ctx.strokeStyle = color1;
+            ctx.fillStyle = color2;
+            ctx.lineWidth = branchWidth;
+            ctx.translate(startX, startY);
+            ctx.rotate(angle * Math.PI / 180);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -length);
+            ctx.stroke();
+
+            if (length < 10) {
+                ctx.beginPath();
+                ctx.arc(0, -length, 5, 0, Math.PI / 2);
+                ctx.fill();
+                ctx.restore();
+                return;
+            }
+
+            drawTree(0, -length, length * branchFactor, angle + angleChange, branchWidth * 0.7, color1, color2);
+            drawTree(0, -length, length * branchFactor, angle - angleChange, branchWidth * 0.7, color1, color2);
+
+            ctx.restore();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawTree(canvas.width / 2, canvas.height - 80, maxBranchLength, 0, 10, '#8B4513', leafColors[colorIndex]);
+            angle += 0.5;
+            if (angle > 360) {
+                angle = 0;
+                colorIndex = (colorIndex + 1) % leafColors.length;
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function updateControls() {
+            document.getElementById('branchLength').value = maxBranchLength;
+            document.getElementById('branchFactor').value = branchFactor;
+            document.getElementById('angleChange').value = angleChange;
+        }
+
+        function randomizeTree() {
+            maxBranchLength = Math.random() * 200 + 50;
+            branchFactor = Math.random() * 0.2 + 0.7;
+            angleChange = Math.random() * 20 + 10;
+            updateControls();
+        }
+
+        function resetToDefault() {
+            maxBranchLength = 150;
+            branchFactor = 0.75;
+            angleChange = 15;
+            colorIndex = 0;
+            updateControls();
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                canvas.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function saveImage() {
+            const link = document.createElement('a');
+            link.download = 'fractal_tree.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Event Listeners
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            angle = (mouseX / canvas.width) * 360;
+        });
+
+        canvas.addEventListener('click', randomizeTree);
+
+        canvas.addEventListener('wheel', (e) => {
+            angleChange += e.deltaY > 0 ? -1 : 1;
+            updateControls();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp':
+                    maxBranchLength += 10;
+                    break;
+                case 'ArrowDown':
+                    maxBranchLength -= 10;
+                    break;
+                case 'ArrowLeft':
+                    angleChange -= 1;
+                    break;
+                case 'ArrowRight':
+                    angleChange += 1;
+                    break;
+                case 'r':
+                    resetToDefault();
+                    break;
+                case 'f':
+                    toggleFullscreen();
+                    break;
+                case 's':
+                    saveImage();
+                    break;
+            }
+            updateControls();
+        });
+
+        document.getElementById('branchLength').addEventListener('input', (e) => {
+            maxBranchLength = parseInt(e.target.value);
+        });
+
+        document.getElementById('branchFactor').addEventListener('input', (e) => {
+            branchFactor = parseFloat(e.target.value);
+        });
+
+        document.getElementById('angleChange').addEventListener('input', (e) => {
+            angleChange = parseInt(e.target.value);
+        });
+
+        document.getElementById('randomize').addEventListener('click', randomizeTree);
+        document.getElementById('resetDefault').addEventListener('click', resetToDefault);
+        document.getElementById('toggleFullscreen').addEventListener('click', toggleFullscreen);
+        document.getElementById('saveImage').addEventListener('click', saveImage);
+
+        animate();
+    </script>
+</body>
+</html>

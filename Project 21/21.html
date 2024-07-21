@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3D Simon Says</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .button {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: rgba(76, 175, 80, 0.7);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: rgba(76, 175, 80, 1);
+        }
+        #gameInfo {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 16px;
+        }
+        #modeSelect {
+            padding: 5px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="level">Level: 1</div>
+        <div id="timer" style="display: none;">Time: 60s</div>
+        <button id="startButton" class="button">Start Game</button>
+        <select id="modeSelect">
+            <option value="classic">Classic Mode</option>
+            <option value="timeAttack">Time Attack Mode</option>
+            <option value="freestyle">Freestyle Mode</option>
+        </select>
+    </div>
+    <div id="gameInfo">Press 'H' for help | 'M' to toggle music | 'S' to toggle sound effects</div>
+    <script>
+        let scene, camera, renderer, buttons, sequence, playerSequence, playing;
+        let score = 0, level = 1, timeLeft = 60;
+        let pointLight, ambientLight;
+        let gameMode = 'classic';
+        let timerInterval;
+        let audioContext, masterGainNode;
+        let musicOn = true, sfxOn = true;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Improved lighting
+            ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            pointLight = new THREE.PointLight(0xffffff, 1, 100);
+            pointLight.position.set(0, 0, 5);
+            scene.add(pointLight);
+
+            // Add a subtle fog effect
+            scene.fog = new THREE.FogExp2(0x000000, 0.05);
+
+            buttons = [];
+            const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00];
+            const positions = [
+                [-1.1, 1.1, 0], [1.1, 1.1, 0],
+                [-1.1, -1.1, 0], [1.1, -1.1, 0]
+            ];
+
+            for (let i = 0; i < 4; i++) {
+                const geometry = new THREE.BoxGeometry(1, 1, 0.1);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: colors[i],
+                    shininess: 100,
+                    specular: 0x111111,
+                    emissive: colors[i],
+                    emissiveIntensity: 0.2
+                });
+                const button = new THREE.Mesh(geometry, material);
+                button.position.set(...positions[i]);
+                scene.add(button);
+                buttons.push(button);
+            }
+
+            // Add background particles
+            addParticles();
+
+            renderer.domElement.addEventListener('click', onButtonClick);
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', onKeyDown);
+
+            document.getElementById('startButton').addEventListener('click', startGame);
+            document.getElementById('modeSelect').addEventListener('change', (e) => {
+                gameMode = e.target.value;
+            });
+
+            sequence = [];
+            playerSequence = [];
+            playing = false;
+
+            // Initialize audio
+            initAudio();
+        }
+
+        function addParticles() {
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particlesCount = 1000;
+
+            const posArray = new Float32Array(particlesCount * 3);
+
+            for(let i = 0; i < particlesCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 10;
+            }
+
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.005,
+                color: 0xffffff
+            });
+
+            const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particlesMesh);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate buttons slightly
+            buttons.forEach(button => {
+                button.rotation.y += 0.005;
+            });
+
+            // Make the point light move in a complex pattern
+            const time = Date.now() * 0.001;
+            pointLight.position.x = Math.sin(time) * 3;
+            pointLight.position.y = Math.cos(time * 1.5) * 2;
+            pointLight.position.z = Math.sin(time * 0.5) * 3 + 5;
+
+            TWEEN.update();
+            
+            renderer.render(scene, camera);
+        }
+
+        function startGame() {
+            sequence = [];
+            playerSequence = [];
+            score = 0;
+            level = 1;
+            timeLeft = 60;
+            updateUI();
+            addToSequence();
+
+            if (gameMode === 'timeAttack') {
+                document.getElementById('timer').style.display = 'block';
+                startTimer();
+            } else {
+                document.getElementById('timer').style.display = 'none';
+            }
+
+            playSequence();
+        }
+
+        function addToSequence() {
+            sequence.push(Math.floor(Math.random() * 4));
+        }
+
+        function playSequence() {
+            playing = true;
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i >= sequence.length) {
+                    clearInterval(interval);
+                    playing = false;
+                    return;
+                }
+                highlightButton(sequence[i]);
+                playSound(sequence[i]);
+                i++;
+            }, 1000 - (level * 50)); // Speed up as levels increase
+        }
+
+        function highlightButton(index) {
+            const button = buttons[index];
+            const originalScale = button.scale.x;
+            
+            new TWEEN.Tween(button.scale)
+                .to({x: 1.2, y: 1.2, z: 1.2}, 200)
+                .easing(TWEEN.Easing.Elastic.Out)
+                .start()
+                .onComplete(() => {
+                    new TWEEN.Tween(button.scale)
+                        .to({x: originalScale, y: originalScale, z: originalScale}, 200)
+                        .easing(TWEEN.Easing.Elastic.Out)
+                        .start();
+                });
+
+            button.material.emissiveIntensity = 1;
+            setTimeout(() => {
+                button.material.emissiveIntensity = 0.2;
+            }, 500);
+        }
+
+        function onButtonClick(event) {
+            if (playing) return;
+
+            const mouse = new THREE.Vector2();
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(buttons);
+
+            if (intersects.length > 0) {
+                const clickedButton = intersects[0].object;
+                const buttonIndex = buttons.indexOf(clickedButton);
+
+                playerSequence.push(buttonIndex);
+                highlightButton(buttonIndex);
+                playSound(buttonIndex);
+
+                if (gameMode === 'freestyle') {
+                    score += 10;
+                    updateUI();
+                } else if (playerSequence.length === sequence.length) {
+                    if (checkSequence()) {
+                        score += 10 * level;
+                        level++;
+                        updateUI();
+                        setTimeout(() => {
+                            addToSequence();
+                            playerSequence = [];
+                            playSequence();
+                        }, 1000);
+                    } else {
+                        endGame();
+                    }
+                }
+            }
+        }
+
+        function checkSequence() {
+            for (let i = 0; i < playerSequence.length; i++) {
+                if (playerSequence[i] !== sequence[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = 'Score: ' + score;
+            document.getElementById('level').textContent = 'Level: ' + level;
+            document.getElementById('startButton').style.display = 'none';
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = 'Time: ' + timeLeft + 's';
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            alert('Game Over! Your score: ' + score);
+            document.getElementById('startButton').style.display = 'inline-block';
+            playing = false;
+        }
+
+        function onKeyDown(event) {
+            if (event.key === 'h' || event.key === 'H') {
+                alert('How to play:\n\n' +
+                      'Classic Mode: Repeat the sequence of flashing buttons.\n' +
+                      'Time Attack Mode: Score as much as you can in 60 seconds.\n' +
+                      'Freestyle Mode: Click buttons freely to score points.\n\n' +
+                      'Press M to toggle music.\n' +
+                      'Press S to toggle sound effects.');
+            } else if (event.key === 'm' || event.key === 'M') {
+                toggleMusic();
+            } else if (event.key === 's' || event.key === 'S') {
+                toggleSoundEffects();
+            }
+        }
+
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGainNode = audioContext.createGain();
+            masterGainNode.connect(audioContext.destination);
+        }
+
+        function playSound(index) {
+            if (!sfxOn) return;
+
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(masterGainNode);
+
+            const frequencies = [261.63, 293.66, 329.63, 349.23]; // C4, D4, E4, F4
+            oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime);
+
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.1);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function toggleMusic() {
+            musicOn = !musicOn;
+            // Implement background music here
+        }
+
+        function toggleSoundEffects() {
+            sfxOn = !sfxOn;
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>

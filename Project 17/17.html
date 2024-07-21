@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polished Pixel Art Color-by-Box Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #game-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #grid-container {
+            display: grid;
+            gap: 1px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .grid-cell {
+            width: 25px;
+            height: 25px;
+            background-color: #fff;
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .grid-cell:hover {
+            opacity: 0.8;
+        }
+        .grid-cell.hint {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        #color-palette {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            max-width: 300px;
+        }
+        .color-option {
+            width: 30px;
+            height: 30px;
+            margin: 5px;
+            border: 2px solid #000;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        .color-option.selected {
+            border: 3px solid #ff0000;
+            box-shadow: 0 0 5px rgba(255,0,0,0.5);
+        }
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #message {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+        #game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        #timer, #score, #level, #hints {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        #difficulty {
+            margin-bottom: 10px;
+        }
+        #progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        #progress {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Pixel Art Color-by-Box</h1>
+        <div id="difficulty">
+            <label for="level-select">Difficulty:</label>
+            <select id="level-select">
+                <option value="easy">Easy (10x10)</option>
+                <option value="medium">Medium (15x15)</option>
+                <option value="hard">Hard (20x20)</option>
+            </select>
+        </div>
+        <div id="game-info">
+            <div id="timer">Time: 0s</div>
+            <div id="score">Score: 0</div>
+            <div id="level">Level: 1</div>
+            <div id="hints">Hints: 3</div>
+        </div>
+        <div id="grid-container"></div>
+        <div id="color-palette"></div>
+        <div id="controls">
+            <button id="start-btn">Start Game</button>
+            <button id="check-btn" disabled>Check Progress</button>
+            <button id="hint-btn" disabled>Get Hint</button>
+            <button id="undo-btn" disabled>Undo</button>
+        </div>
+        <div id="message"></div>
+        <div id="progress-bar">
+            <div id="progress"></div>
+        </div>
+    </div>
+
+    <script>
+        const gridContainer = document.getElementById('grid-container');
+        const colorPalette = document.getElementById('color-palette');
+        const startBtn = document.getElementById('start-btn');
+        const checkBtn = document.getElementById('check-btn');
+        const hintBtn = document.getElementById('hint-btn');
+        const undoBtn = document.getElementById('undo-btn');
+        const message = document.getElementById('message');
+        const timerDisplay = document.getElementById('timer');
+        const scoreDisplay = document.getElementById('score');
+        const levelDisplay = document.getElementById('level');
+        const hintsDisplay = document.getElementById('hints');
+        const levelSelect = document.getElementById('level-select');
+        const progressBar = document.getElementById('progress');
+
+        let gridSize = 10;
+        let selectedColor = '';
+        let isMouseDown = false;
+        let gameActive = false;
+        let timer = 0;
+        let score = 0;
+        let level = 1;
+        let hints = 3;
+        let timerInterval;
+        let pattern = [];
+        let moveHistory = [];
+
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#8800ff', '#ff69b4', '#006400'];
+
+        function createGrid() {
+            gridContainer.innerHTML = '';
+            gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, 25px)`;
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.addEventListener('mousedown', () => {
+                        if (gameActive) {
+                            isMouseDown = true;
+                            colorCell(cell);
+                        }
+                    });
+                    cell.addEventListener('mouseenter', () => {
+                        if (gameActive && isMouseDown) {
+                            colorCell(cell);
+                        }
+                    });
+                    gridContainer.appendChild(cell);
+                }
+            }
+        }
+
+        function createColorPalette() {
+            colorPalette.innerHTML = '';
+            colors.forEach((color, index) => {
+                const colorOption = document.createElement('div');
+                colorOption.classList.add('color-option');
+                colorOption.style.backgroundColor = color;
+                colorOption.dataset.colorIndex = index;
+                colorOption.addEventListener('click', () => selectColor(color, colorOption));
+                colorPalette.appendChild(colorOption);
+            });
+        }
+
+        function selectColor(color, element) {
+            selectedColor = color;
+            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function colorCell(cell) {
+            if (selectedColor) {
+                const oldColor = cell.style.backgroundColor;
+                cell.style.backgroundColor = selectedColor;
+                moveHistory.push({cell, oldColor});
+                undoBtn.disabled = false;
+                updateProgress();
+            }
+        }
+
+        function generatePattern() {
+            pattern = [];
+            for (let i = 0; i < gridSize; i++) {
+                pattern[i] = [];
+                for (let j = 0; j < gridSize; j++) {
+                    pattern[i][j] = Math.floor(Math.random() * colors.length);
+                }
+            }
+        }
+
+        function checkCompletion() {
+            let correctCells = 0;
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach((cell, index) => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                const expectedColor = colors[pattern[row][col]];
+                if (cell.style.backgroundColor === expectedColor) {
+                    correctCells++;
+                }
+            });
+            const totalCells = gridSize * gridSize;
+            const percentageCorrect = (correctCells / totalCells) * 100;
+            
+            message.textContent = `You've correctly colored ${percentageCorrect.toFixed(1)}% of the cells.`;
+            updateProgress(percentageCorrect);
+
+            if (percentageCorrect === 100) {
+                message.textContent += ' Congratulations! You completed the picture!';
+                endGame();
+            }
+        }
+
+        function getHint() {
+            if (hints > 0) {
+                const incorrectCells = Array.from(document.querySelectorAll('.grid-cell')).filter(cell => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    return cell.style.backgroundColor !== colors[pattern[row][col]];
+                });
+                
+                if (incorrectCells.length > 0) {
+                    const randomCell = incorrectCells[Math.floor(Math.random() * incorrectCells.length)];
+                    const row = parseInt(randomCell.dataset.row);
+                    const col = parseInt(randomCell.dataset.col);
+                    const correctColor = colors[pattern[row][col]];
+                    
+                    randomCell.classList.add('hint');
+                    setTimeout(() => {
+                        randomCell.classList.remove('hint');
+                        randomCell.style.backgroundColor = correctColor;
+                        updateProgress();
+                    }, 2000);
+                    
+                    hints--;
+                    hintsDisplay.textContent = `Hints: ${hints}`;
+                    score -= 10;
+                    updateScore();
+                } else {
+                    message.textContent = 'All cells are correct!';
+                }
+            } else {
+                message.textContent = 'No more hints available!';
+            }
+        }
+
+        function startGame() {
+            gameActive = true;
+            timer = 0;
+            score = 0;
+            hints = 3;
+            moveHistory = [];
+            updateScore();
+            generatePattern();
+            createGrid();
+            startBtn.textContent = 'Restart Game';
+            checkBtn.disabled = false;
+            hintBtn.disabled = false;
+            undoBtn.disabled = true;
+            message.textContent = '';
+            hintsDisplay.textContent = `Hints: ${hints}`;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+            updateProgress(0);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            checkBtn.disabled = true;
+            hintBtn.disabled = true;
+            undoBtn.disabled = true;
+            calculateScore();
+            level++;
+            levelDisplay.textContent = `Level: ${level}`;
+        }
+
+        function updateTimer() {
+            timer++;
+            timerDisplay.textContent = `Time: ${timer}s`;
+        }
+
+        function calculateScore() {
+            const baseScore = 1000;
+            const timeMultiplier = 0.5;
+            const levelBonus = level * 100;
+            score = Math.max(0, Math.floor(baseScore - (timer * timeMultiplier) + levelBonus));
+            updateScore();
+        }
+
+        function updateScore() {
+            scoreDisplay.textContent = `Score: ${score}`;
+        }
+
+        function updateProgress(percentage = null) {
+            if (percentage === null) {
+                let correctCells = 0;
+                const cells = document.querySelectorAll('.grid-cell');
+                cells.forEach((cell, index) => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    const expectedColor = colors[pattern[row][col]];
+                    if (cell.style.backgroundColor === expectedColor) {
+                        correctCells++;
+                    }
+                });
+                const totalCells = gridSize * gridSize;
+                percentage = (correctCells / totalCells) * 100;
+            }
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        function undo() {
+            if (moveHistory.length > 0) {
+                const lastMove = moveHistory.pop();
+                lastMove.cell.style.backgroundColor = lastMove.oldColor;
+                updateProgress();
+                if (moveHistory.length === 0) {
+                    undoBtn.disabled = true;
+                }
+            }
+        }
+
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        startBtn.addEventListener('click', startGame);
+        checkBtn.addEventListener('click', checkCompletion);
+        hintBtn.addEventListener('click', getHint);
+        undoBtn.addEventListener('click', undo);
+
+        levelSelect.addEventListener('change', () => {
+            switch (levelSelect.value) {
+                case 'easy':
+                    gridSize = 10;
+                    break;
+                case 'medium':
+                    gridSize = 15;
+                    break;
+                case 'hard':
+                    gridSize = 20;
+                    break;
+            }
+            createGrid();
+        });
+
+        createColorPalette();
+        createGrid();
+    </script>
+</body>
+</html>

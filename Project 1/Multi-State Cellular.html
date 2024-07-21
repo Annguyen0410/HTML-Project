@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insane 4D Tesseract Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>4D Tesseract Visualization</h2>
+        <p>Click and drag to rotate the view</p>
+        <p>Use mouse wheel to zoom in/out</p>
+        <p>Adjust settings in the control panel</p>
+    </div>
+    <script>
+        // Set up scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create tesseract geometry
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x555555, shininess: 30 });
+        const tesseract = new THREE.Mesh(geometry, material);
+        scene.add(tesseract);
+
+        // Create nested cubes
+        const innerCubes = [];
+        const layers = 6;
+        for (let l = 0; l < layers; l++) {
+            for (let i = 0; i < 8; i++) {
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.set(
+                    (i & 1) ? 0.5 : -0.5,
+                    (i & 2) ? 0.5 : -0.5,
+                    (i & 4) ? 0.5 : -0.5
+                );
+                cube.position.multiplyScalar(Math.pow(1.5, l));
+                cube.scale.multiplyScalar(0.5);
+                innerCubes.push(cube);
+                tesseract.add(cube);
+            }
+        }
+
+        // Add pulsating glow effect
+        const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+        const glowMesh = new THREE.Mesh(geometry, glowMaterial);
+        glowMesh.scale.multiplyScalar(1.1);
+        tesseract.add(glowMesh);
+
+        // Add kaleidoscopic background
+        const bgGeometry = new THREE.IcosahedronGeometry(100, 4);
+        const bgMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+        const background = new THREE.Mesh(bgGeometry, bgMaterial);
+        scene.add(background);
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        // Position camera
+        camera.position.z = 10;
+
+        // Custom camera controls
+        let isDragging = false;
+        let previousMousePosition = {
+            x: 0,
+            y: 0
+        };
+
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+        });
+
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            const deltaMove = {
+                x: e.offsetX - previousMousePosition.x,
+                y: e.offsetY - previousMousePosition.y
+            };
+
+            if (isDragging) {
+                const deltaRotationQuaternion = new THREE.Quaternion()
+                    .setFromEuler(new THREE.Euler(
+                        toRadians(deltaMove.y * 1),
+                        toRadians(deltaMove.x * 1),
+                        0,
+                        'XYZ'
+                    ));
+
+                camera.quaternion.multiplyQuaternions(deltaRotationQuaternion, camera.quaternion);
+            }
+
+            previousMousePosition = {
+                x: e.offsetX,
+                y: e.offsetY
+            };
+        });
+
+        renderer.domElement.addEventListener('mouseup', (e) => {
+            isDragging = false;
+        });
+
+        renderer.domElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            camera.position.z += e.deltaY * 0.01;
+        });
+
+        function toRadians(angle) {
+            return angle * (Math.PI / 180);
+        }
+
+        // GUI controls
+        const gui = new dat.GUI();
+        const params = {
+            rotationSpeed: 0.01,
+            glowIntensity: 0.5,
+            backgroundColor: '#000000'
+        };
+
+        gui.add(params, 'rotationSpeed', 0, 0.1);
+        gui.add(params, 'glowIntensity', 0, 1);
+        gui.addColor(params, 'backgroundColor').onChange((value) => {
+            scene.background = new THREE.Color(value);
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate tesseract
+            tesseract.rotation.x += params.rotationSpeed;
+            tesseract.rotation.y += params.rotationSpeed;
+
+            // Rotate inner cubes
+            for (let i = 0; i < innerCubes.length; i++) {
+                innerCubes[i].rotation.x += params.rotationSpeed;
+                innerCubes[i].rotation.y += params.rotationSpeed;
+            }
+
+            // Pulsating glow effect
+            const glowScale = 1.1 + Math.sin(Date.now() * 0.001) * 0.1 * params.glowIntensity;
+            glowMesh.scale.set(glowScale, glowScale, glowScale);
+
+            // Rotate kaleidoscope background
+            background.rotation.x += 0.001;
+            background.rotation.y += 0.002;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Responsive design
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
